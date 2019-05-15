@@ -10,7 +10,7 @@ print('USING TF 1.13 AUGMENTOR NOT TO BE USED ON SERVER')
 print('USING TF 1.13 AUGMENTOR NOT TO BE USED ON SERVER')
 print('USING TF 1.13 AUGMENTOR NOT TO BE USED ON SERVER')
 print('USING TF 1.13 AUGMENTOR NOT TO BE USED ON SERVER')
-from preprocessing import augmentor2 as augmentor
+from preprocessing import augmentor
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS

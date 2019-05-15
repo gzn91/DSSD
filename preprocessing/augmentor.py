@@ -229,7 +229,7 @@ def random_flip_left_right(image, bboxes, seed=None):
     # Random flip. Tensorflow implementation.
     with tf.name_scope('random_flip_left_right'):
         image = tf.convert_to_tensor(image, name='image')
-        uniform_random = tf.random_uniform([], 0, 1.0, seed=seed)
+        uniform_random = tf.random.uniform([], 0, 1.0, seed=seed)
         mirror_cond = tf.less(uniform_random, .5)
         # Flip image.
         image = tf.cond(mirror_cond,
@@ -244,7 +244,7 @@ def random_flip_left_right(image, bboxes, seed=None):
 
 def random_zoom_out(image, boxes, seed=None):
     def zoom(image, boxes):
-        zoom_factor = tf.random_uniform([], 1.0, 3.0, seed=seed)
+        zoom_factor = tf.random.uniform([], 1.0, 3.0, seed=seed)
         old_height = tf.to_float(tf.shape(image)[0])
         old_width = tf.to_float(tf.shape(image)[1])
         new_height = old_height / zoom_factor
@@ -260,18 +260,12 @@ def random_zoom_out(image, boxes, seed=None):
         # make a new image by padding zeros
         pad_x = old_width - new_width
         pad_y = old_height - new_height
-        pad_left = tf.random_uniform([], 0, pad_x)
+        pad_left = tf.random.uniform([], 0, pad_x)
         pad_right = pad_x - pad_left
-        pad_top = tf.random_uniform([], 0, pad_y)
+        pad_top = tf.random.uniform([], 0, pad_y)
         pad_down = pad_y - pad_top
-        print("pl",pad_left.get_shape())
-        print("pr",pad_right.get_shape())
-        print("pt",pad_top.get_shape())
-        zero_const = tf.constant(0)
-        paddings = [[tf.to_int32(pad_top), tf.to_int32(pad_down)], [tf.to_int32(pad_left), tf.to_int32(pad_right)],[zero_const,zero_const]]
-        print("Paddings shape",paddings)
-        print("Image shape",image.get_shape())
-        image = tf.pad(image, paddings, "CONSTANT")
+
+        image = tf.pad(image, [[pad_top, pad_down], [pad_left, pad_right], [0, 0]], "CONSTANT")
 
         translate_x = tf.to_float(pad_left) / tf.to_float(old_width)
         translate_y = tf.to_float(pad_top) / tf.to_float(old_height)
@@ -290,7 +284,7 @@ def random_zoom_out(image, boxes, seed=None):
         return (image, boxes)
 
     with tf.name_scope("random_zoom_out"):
-        uniform_random = tf.random_uniform([], 0, 1.0, seed=seed)
+        uniform_random = tf.random.uniform([], 0, 1.0, seed=seed)
 
         zoom_cond = tf.less(uniform_random, .5)
 
@@ -444,7 +438,7 @@ def preprocess_for_train(image,
                 num_cases=4)
 
         # Rollback to the full image if there is no boxes
-        no_box_cond = tf.equal(tf.size(boxes), 0)
+        no_box_cond = tf.equal(tf.shape(boxes)[0], 0)
         image = tf.cond(no_box_cond,
                         lambda: image_ori,
                         lambda: image)
@@ -464,8 +458,8 @@ def preprocess_for_train(image,
 
         scale_x = tf.to_float(tf.shape(image)[1]) / tf.to_float(resolution)
         scale_y = tf.to_float(tf.shape(image)[0]) / tf.to_float(resolution)
-        shift_x = tf.maximum(0.0, tf.to_float(resolution - tf.shape(image)[1]) / float(resolution * 2))
-        shift_y = tf.maximum(0.0, tf.to_float(resolution - tf.shape(image)[0]) / float(resolution * 2))
+        shift_x = tf.math.maximum(0.0, tf.to_float(resolution - tf.shape(image)[1]) / float(resolution * 2))
+        shift_y = tf.math.maximum(0.0, tf.to_float(resolution - tf.shape(image)[0]) / float(resolution * 2))
         x1, y1, x2, y2 = tf.unstack(boxes, 4, axis=1)
         x1 = tf.scalar_mul(scale_x, x1)
         y1 = tf.scalar_mul(scale_y, y1)
@@ -514,8 +508,8 @@ def preprocess_for_eval(image,
         #
         # scale_x = tf.to_float(tf.shape(image)[1]) / tf.to_float(resolution)
         # scale_y = tf.to_float(tf.shape(image)[0]) / tf.to_float(resolution)
-        # shift_x = tf.maximum(0.0, tf.to_float(resolution - tf.shape(image)[1]) / float(resolution * 2))
-        # shift_y = tf.maximum(0.0, tf.to_float(resolution - tf.shape(image)[0]) / float(resolution * 2))
+        # shift_x = tf.math.maximum(0.0, tf.to_float(resolution - tf.shape(image)[1]) / float(resolution * 2))
+        # shift_y = tf.math.maximum(0.0, tf.to_float(resolution - tf.shape(image)[0]) / float(resolution * 2))
         # x1, y1, x2, y2 = tf.unstack(boxes, 4, axis=1)
         # x1 = tf.scalar_mul(scale_x, x1)
         # y1 = tf.scalar_mul(scale_y, y1)
@@ -563,7 +557,6 @@ def preprocess_for_export(image, resolution, mb_size):
     # image = tf.expand_dims(image, 0)
     # image = tf.image.resize_bilinear(image, [resolution, resolution],
     #                                  align_corners=False)
-    # image = tf.squeeze(image, [0])
     image = tf.reshape(image, (mb_size, resolution, resolution, 3))
     image = tf.subtract(image, 0.5)
     image = tf.multiply(image, 2.0)
