@@ -33,7 +33,7 @@ default_params = SSDParams(
                          [2, .5, 1.6, 3, 1. / 3],
                          [2, .5],
                          [2, .5]],
-    anchor_steps=[8, 16, 32, 64, 128, 256, 513],
+    anchor_steps=[6, 10, 30, 60, 105, 170, 513],
     anchor_offset=0.5,
     multibox_l2=[True, False, False, False, False, False, False]
 )
