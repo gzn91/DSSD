@@ -37,18 +37,6 @@ default_params = SSDParams(
     multibox_l2=[True, False, False, False, False, False]
 )
 
-# Compute the scales used for the anchors, different layers will have different scale,
-# the scale is computed within the size bounds and will be the lower bound for the lowest layer
-# and the largest bound for the highest layer. The layers in between will have a scale in the range
-# (lower, higher bound) increasing linearly with each layer.
-# def scale(size_bounds, nfeature_maps):
-#     def _scale(k):
-#         sk = size_bounds[0] + (size_bounds[1] - size_bounds[0]) * (k - 1) / (nfeature_maps - 1)
-#         nxt_sk = size_bounds[0] + (size_bounds[1] - size_bounds[0]) * (k) / (nfeature_maps - 1)
-#         return (sk, nxt_sk)
-#
-#     return _scale
-
 
 class DSSDNet(object):
 
@@ -340,8 +328,6 @@ class DSSD(DSSDNet):
             layer_anchors.append(generate_anchors(feat_shape, step, scale, ratio))
         return layer_anchors
 
-    """locs has shape [(1, 37, 37, 4, 4), (1, 17, 17, 6, 4), (1, 9, 9, 6, 4), (1, 5, 5, 6, 4), (1, 3, 3, 4, 4), (1, 1, 1, 4, 4)],
-    needs to be fatten in order to plot bboxes e.g. [mb, -1, 4, 4]"""
 
     def get_bboxes(self, predictions_layer, locs_layer, anchors_layer, prior_scaling=[0.1, 0.1, 0.2, 0.2], thresh=.1):
 

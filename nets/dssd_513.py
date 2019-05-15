@@ -334,9 +334,6 @@ class DSSD(DSSDNet):
             layer_anchors.append(generate_anchors(feat_shape, step, scale, ratio))
         return layer_anchors
 
-    """locs has shape [(1, 37, 37, 4, 4), (1, 17, 17, 6, 4), (1, 9, 9, 6, 4), (1, 5, 5, 6, 4), (1, 3, 3, 4, 4), (1, 1, 1, 4, 4)],
-    needs to be fatten in order to plot bboxes e.g. [mb, -1, 4, 4]"""
-
     def get_bboxes(self, predictions_layer, locs_layer, anchors_layer, prior_scaling=[0.1, 0.1, 0.2, 0.2], thresh=.1):
 
         def _get_bbox(preds, locs, anchors):
