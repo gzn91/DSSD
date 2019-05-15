@@ -1,5 +1,5 @@
 import base64
-from ssd_fpn_512 import SSDSaver
+from nets.dssd_321 import DSSDSaver
 from io import BytesIO
 from PIL import Image
 import os
@@ -7,24 +7,24 @@ import imageio
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-from datasets.cls_dict_gen import labels_to_name, labels
+from datasets.cls_dict_gen import labels_to_name
 from preprocessing.augmentor import preprocess_for_export
+from matplotlib.patches import Rectangle
 from datetime import datetime
 
+FLAGS = tf.flags.FLAGS
+
+
 # main training loop
-def eval(image,model_fn):
+def eval(image, model_fn):
     sess = tf.get_default_session()
 
     # Create model
     ssd = model_fn()
 
     img_ph = tf.placeholder(tf.uint8, shape=(None, None, 3))
-    shape_ph = tf.placeholder(tf.int32,(2,))
-    # shape = tf.cast(.2*shape_ph, tf.int32)
 
-    fine_img = preprocess_for_export(img_ph, shape_ph[0], 1)
-
-    img = preprocess_for_export(img_ph, 513, 1)
+    img = preprocess_for_export(img_ph, FLAGS.img_size, 1)
 
     # Eval model
     eval_model = ssd.eval_model
@@ -41,7 +41,7 @@ def eval(image,model_fn):
     sess.run(tf.global_variables_initializer())
 
     # Saver object to save and restore graph
-    saver = SSDSaver()
+    saver = DSSDSaver()
 
     saver.restore_model()
     global names
@@ -75,8 +75,6 @@ def iou_with_anchors(bboxes, labels):
     iou = ivol / uvol
     return iou
 
-
-from matplotlib.patches import Rectangle
 
 def draw_bbox(image, preds, bboxes):
     fig, ax = plt.subplots(1)

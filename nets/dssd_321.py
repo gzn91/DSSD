@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib as tc
 import tensorflow.contrib.slim as slim
-from layers2 import conv2d, conv2d_transpose, l2_normalization
+from nets.layers import conv2d, conv2d_transpose, l2_normalization
 from tensorflow.contrib.slim.nets import resnet_v2
 from collections import namedtuple
 import numpy as np
@@ -50,7 +50,7 @@ default_params = SSDParams(
 #     return _scale
 
 
-class SSDNet(object):
+class DSSDNet(object):
 
     def __init__(self, params=default_params):
         self.params = params
@@ -67,8 +67,6 @@ class SSDNet(object):
 
         x = tf.layers.batch_normalization(x, training=is_training)
         x = tf.nn.leaky_relu(x)
-        # if multibox_l2norm:
-        #     x = l2_normalization(x, scale=20.)
 
         # Number of anchors
         num_anchors = len(scales) + len(aratios)
@@ -111,14 +109,12 @@ class SSDNet(object):
 
         return x
 
-    """FPN conv net for feature maps"""
+    """FPN conv nets for feature maps"""
 
     def ssd_network(self, image, *args, **kwargs):
         is_training, reuse, scope, use_bn = args
         ncls, fmap_layer, anchor_scales, anchor_ratios, multibox_l2 = kwargs.values()
         x = image
-        # x = tf.image.resize_images(image, self.params.img_shape)
-        end_points = {}
 
         # Down
         print(x.get_shape())
@@ -222,7 +218,7 @@ class SSDNet(object):
             return predictions, localizations, logits, end_points
 
 
-class SSD(SSDNet):
+class DSSD(DSSDNet):
 
     def __init__(self):
         super().__init__()
@@ -243,7 +239,7 @@ class SSD(SSDNet):
 
         def model(*args):
             def _model(img):
-                return super(SSD, self).ssd_network(img, *args, **net_kwargs)
+                return super(DSSD, self).ssd_network(img, *args, **net_kwargs)
 
             return _model
 
@@ -423,7 +419,7 @@ class SSD(SSDNet):
         return selected_scores, selected_bboxes
 
 
-class SSDSaver(object):
+class DSSDSaver(object):
     def __init__(self):
         self.saver = tf.train.Saver()
         self.sess = tf.get_default_session()

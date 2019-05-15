@@ -5,7 +5,7 @@ from tensorflow.contrib.slim.nets import resnet_v2
 from collections import namedtuple, OrderedDict
 import numpy as np
 from datasets.cls_dict_gen import num_cls
-from layers import conv2d, conv2d_transpose
+from nets.layers import conv2d, conv2d_transpose
 
 FLAGS = tf.app.flags.FLAGS
 SSDParams = namedtuple('SSDParameters', ['img_shape',
@@ -39,20 +39,7 @@ default_params = SSDParams(
 )
 
 
-# Compute the scales used for the anchors, different layers will have different scale,
-# the scale is computed within the size bounds and will be the lower bound for the lowest layer
-# and the largest bound for the highest layer. The layers in between will have a scale in the range
-# (lower, higher bound) increasing linearly with each layer.
-# def scale(size_bounds, nfeature_maps):
-#     def _scale(k):
-#         sk = size_bounds[0] + (size_bounds[1] - size_bounds[0]) * (k - 1) / (nfeature_maps - 1)
-#         nxt_sk = size_bounds[0] + (size_bounds[1] - size_bounds[0]) * (k) / (nfeature_maps - 1)
-#         return (sk, nxt_sk)
-#
-#     return _scale
-
-
-class SSDNet(object):
+class DSSDNet(object):
 
     def __init__(self, params=default_params):
         self.params = params
@@ -113,7 +100,7 @@ class SSDNet(object):
 
         return x
 
-    """FPN conv net for feature maps"""
+    """FPN conv nets for feature maps"""
 
     def ssd_network(self, image, *args, **kwargs):
         is_training, reuse, scope, use_bn = args
@@ -143,6 +130,7 @@ class SSDNet(object):
                               training=is_training)
                 print('shape after block5_a', x_33.get_shape().as_list())
 
+            # cba renaming all the blocks
             with tf.variable_scope('block5_b'):
                 x = conv2d(x_33, 256, 1, name='conv1', padding='SAME', use_bn=True, training=is_training)
                 x_17 = conv2d(x, 512, 3, strides=2, name='conv2', padding='SAME', use_bn=True, training=is_training)
@@ -201,7 +189,7 @@ class SSDNet(object):
                 end_points['block14'] = y_33
 
             with tf.variable_scope('block15'):
-                y_66 = self.deconv_module(y_33, x_66, is_training, scope='up5')
+                y_66 = self.deconv_module(y_33, x_66, is_training, scope='up6')
                 print('shape after block15', y_66.get_shape().as_list())
                 end_points['block15'] = y_66
 
@@ -225,7 +213,7 @@ class SSDNet(object):
             return predictions, localizations, logits, end_points
 
 
-class SSD(SSDNet):
+class DSSD(DSSDNet):
 
     def __init__(self):
         super().__init__()
@@ -246,7 +234,7 @@ class SSD(SSDNet):
 
         def model(*args):
             def _model(img):
-                return super(SSD, self).ssd_network(img, *args, **net_kwargs)
+                return super(DSSD, self).ssd_network(img, *args, **net_kwargs)
 
             return _model
 
@@ -400,7 +388,6 @@ class SSD(SSDNet):
         #   so only elements for the current batch sample is taken into consideration.
         # #
         selected_scores = []
-        selected_classes = []
         selected_bboxes = []
         for i, (bb, sc) in enumerate(zip(batch_bboxes, batch_scores)):
             sc = tf.concat(sc, 0)
@@ -423,13 +410,12 @@ class SSD(SSDNet):
             selected_scores.append(sel_sc)
             selected_bboxes.append(sel_bb)
             """END"""
-            # idx = tf.image.non_max_suppression(_bboxes, _scores, iou_threshold=.5, max_output_size=20)
         # Due to different images may have a different amount of object bboxes and scores
         #  can not be stacked and is returned as a list
         return selected_scores, selected_bboxes
 
 
-class SSDSaver(object):
+class DSSDSaver(object):
     def __init__(self):
         self.saver = tf.train.Saver()
         self.sess = tf.get_default_session()

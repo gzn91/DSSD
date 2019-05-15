@@ -1,4 +1,4 @@
-from ssd_fpn_512 import SSDSaver
+from nets.dssd_321 import DSSDSaver
 import tensorflow as tf
 from tensorflow.contrib import slim
 import numpy as np
@@ -132,7 +132,7 @@ def train(input_fn, model_fn):
     # Saver object to save and restore graph
     init_fn(sess)
 
-    saver = SSDSaver()
+    saver = DSSDSaver()
     i = 0
 
     if FLAGS.restore:

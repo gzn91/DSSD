@@ -1,4 +1,4 @@
-from ssd_fpn_512 import SSDSaver
+from nets.dssd_321 import DSSDSaver
 import tensorflow as tf
 import numpy as np
 import os
@@ -49,7 +49,7 @@ def eval(input_fn, model_fn):
 
     # Initialize graph
     sess.run(tf.global_variables_initializer())
-    saver = SSDSaver()
+    saver = DSSDSaver()
 
     # raise KeyboardInterrupt
     saver.restore_model()

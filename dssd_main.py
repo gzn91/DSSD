@@ -1,8 +1,8 @@
 import tensorflow as tf
-# from dssd_513 import SSD
-from dssd_321 import SSD
+# from nets.dssd_513 import DSSD
+from nets.dssd_321 import DSSD
 from datasets.cls_dict_gen import num_cls
-import ssd_train, ssd_eval
+import dssd_train, dssd_inference
 from datetime import datetime
 import numpy as np
 print('USING TF 1.13 AUGMENTOR NOT TO BE USED ON SERVER')
@@ -121,10 +121,10 @@ def load_img(i):
     img = imageio.imread(os.path.join(path,imgs[i]))
     return img, img.shape[:-1]
 
-# TEST
+
 def main(_):
 
-    model_fn = lambda: SSD()
+    model_fn = lambda: DSSD()
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     with tf.Session(config=config).as_default():
@@ -137,10 +137,10 @@ def main(_):
         if FLAGS.training:
             input_fn = tfrecord_input_fn(train_record, shuffle=True, training=True)
             eval_input_fn = tfrecord_input_fn(test_record, batch_size=FLAGS.mb_size)
-            ssd_train.train([input_fn, eval_input_fn], model_fn)
+            dssd_train.train([input_fn, eval_input_fn], model_fn)
 
         else:
-            get_infos = ssd_eval.eval(0, model_fn)
+            get_infos = dssd_inference.eval(0, model_fn)
             for i in range(100):
                 img, img_shape = load_img(i)
                 print(np.float32(img_shape))
