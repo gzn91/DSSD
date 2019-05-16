@@ -25,8 +25,8 @@ default_params = SSDParams(
     num_classes=num_cls(),
     feat_layers=['block15', 'block14', 'block13', 'block12', 'block11', 'block10', 'block9'],
     feat_shapes=[(65, 65), (33, 33), (17, 17), (9, 9), (5, 5), (3, 3), (1, 1)],
-    anchor_scale_bounds=[0.1, 0.90],
-    anchor_scales=[(0.1, 0.1414), (0.2, 0.2739), (0.32, 0.3841), (0.42, 0.4841), (0.55, 0.6315), (0.725, 0.8078), (0.9, 0.9836)],
+    anchor_scale_bounds=[0.07, 0.90],
+    anchor_scales=[(0.07, 0.1214), (0.16, 0.2239), (0.28, 0.3441), (0.42, 0.4841), (0.55, 0.6315), (0.725, 0.8078), (0.9, 0.9836)],
     anchor_aspectratios=[[2, .5],
                          [2, .5, 1.6, 3, 1. / 3],
                          [2, .5, 1.6, 3, 1. / 3],
@@ -34,7 +34,7 @@ default_params = SSDParams(
                          [2, .5, 1.6, 3, 1. / 3],
                          [2, .5],
                          [2, .5]],
-    anchor_steps=[8, 16, 32, 64, 128, 256, 513],
+    anchor_steps=[6, 10, 30, 60, 105, 170, 513],
     anchor_offset=0.5,
     multibox_l2=[True, False, False, False, False, False, False]
 )
