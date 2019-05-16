@@ -6,6 +6,7 @@ from collections import namedtuple, OrderedDict
 import numpy as np
 from datasets.cls_dict_gen import num_cls
 from nets.layers import conv2d, conv2d_transpose
+from utils import flat_featuremaps
 
 FLAGS = tf.app.flags.FLAGS
 SSDParams = namedtuple('SSDParameters', ['img_shape',
@@ -117,9 +118,9 @@ class DSSDNet(object):
                                                           output_stride=None,
                                                           reuse=reuse)
 
-            x_66 = end_points['resnet_v2_101/block2']
+            x_65 = end_points['resnet_v2_101/block2']
             x = end_points['resnet_v2_101/block4']
-            print('shape after block2', x_66.get_shape().as_list())
+            print('shape after block2', x_65.get_shape().as_list())
 
             # Dilation block
             # Batch norm and leaky relu
@@ -139,8 +140,8 @@ class DSSDNet(object):
             # SSD Blocks
             # 9 x 9
             with tf.variable_scope('block6'):
-                x = conv2d(x_17, 256, 1, name='conv1', padding='SAME', use_bn=True, training=is_training)
-                x_9 = conv2d(x, 512, 3, strides=2, name='conv2', padding='SAME', use_bn=True, training=is_training)
+                x = conv2d(x_17, 128, 1, name='conv1', padding='SAME', use_bn=True, training=is_training)
+                x_9 = conv2d(x, 256, 3, strides=2, name='conv2', padding='SAME', use_bn=True, training=is_training)
                 print('shape after block6', x_9.get_shape().as_list())
 
             # 5 x 5
@@ -189,7 +190,7 @@ class DSSDNet(object):
                 end_points['block14'] = y_33
 
             with tf.variable_scope('block15'):
-                y_66 = self.deconv_module(y_33, x_66, is_training, scope='up6')
+                y_66 = self.deconv_module(y_33, x_65, is_training, scope='up6')
                 print('shape after block15', y_66.get_shape().as_list())
                 end_points['block15'] = y_66
 
@@ -272,52 +273,59 @@ class DSSD(DSSDNet):
     logits, localizations, glabels, glocalizations, gscores
     """
 
-    def loss(self, *args, thresh=0.5, negratio=3., alpha=1., scope=''):
-        from utils import flat_featuremaps, flatarrs_in_list
+    def loss(self, *args, negratio=3., alpha=1., scope=''):
+
+        def _smooth_l1(y_true, y_pred):
+            abs_loss = tf.abs(y_true - y_pred)
+            sq_loss = 0.5 * (y_true - y_pred) ** 2
+            loss = tf.where(tf.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
+            return loss
+
         with tf.name_scope(scope, 'losses'):
             # Flatten
-            nbatch, ncls = args[0][0].get_shape().as_list()[0], args[0][0].get_shape().as_list()[-1]
-            sizes = {'ncls': (ncls,), 'nloc': (4,), 'gcls': (), 'gloc': (4,), 'gsc': ()}
+            sizes = {'ncls': (FLAGS.ncls,), 'nloc': (4,), 'gcls': (), 'gloc': (4,), 'gsc': ()}
             logits, localizations, glabels, glocalizations, gscores = flat_featuremaps(*args, **sizes)
 
-            # Compute predictions
-            predictions = tf.nn.softmax(logits, axis=-1)
-
             # Compute positive and negative loss:
-            smooth_l1 = lambda x: tf.where(tf.greater_equal(x, 1), tf.abs(x) - .5, .5 * tf.square(x))
-            loc_loss = smooth_l1(localizations - glocalizations)
-            conf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=tf.one_hot(glabels, ncls))
+            loc_loss = _smooth_l1(glocalizations, localizations)
+            conf_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,
+                                                                   labels=tf.one_hot(glabels, depth=FLAGS.ncls,
+                                                                                     axis=-1))
             with tf.name_scope('positive'):
                 # Positive confidences if score > thresh
-                pmask = gscores > thresh
+                pmask = glabels > 0
                 fpmask = tf.cast(pmask, tf.float32)
-                # Calc num positive boxes
+
+                # Gather the positive losses
+                cls_positives = tf.boolean_mask(conf_loss, pmask)
+                loc_positives = tf.boolean_mask(alpha * loc_loss, pmask)
+
+                # Number of positives
                 npositives = tf.reduce_sum(fpmask)
                 N = tf.maximum(1., npositives)
-                # boolean mask returns only the values where the mask is true
-                ploss = tf.reduce_sum(tf.boolean_mask(conf_loss, pmask, name='positive_conf_loss')) / N
-                plocloss = tf.reduce_sum(tf.boolean_mask(alpha * loc_loss, pmask, name='positive_loc_loss')) / N
+
+                ploss = tf.reduce_sum(cls_positives) / N
+                plocloss = tf.reduce_sum(loc_positives) / N
+
             with tf.name_scope('negative'):
                 # Calc num of negative boxes
                 nmask = tf.logical_not(pmask)
+
+                # Gather the negative losses
+                negatives = tf.boolean_mask(conf_loss, nmask)
+
+                # Number of negatives
                 fnmask = tf.cast(nmask, tf.float32)
                 nnegatives = tf.minimum(negratio * npositives, tf.reduce_sum(fnmask))
-                # Check is there is any negative boxes
-                use_nnegatives = nnegatives > 0
-                use_nnegatives_float = tf.cast(use_nnegatives, tf.float32)
-                # Use 8 neg boxes if there is no positive boxes
-                nnegatives = nnegatives * use_nnegatives_float + (1 - use_nnegatives_float) * 8
-                nnegatives = tf.cast(nnegatives, tf.int32)
 
-                # Largest confidence loss
-                max_hard_pred = tf.reduce_max(predictions[:, 1:], axis=-1)
-                # Returns indices top nnegatives confidence losses
-                vals, idxes = tf.nn.top_k(max_hard_pred * fnmask, k=nnegatives)
+                # Use 1 neg boxes if there is no positive boxes
+                nnegatives = tf.maximum(nnegatives, 1)
 
-                # Gather the losses
-                nloss = tf.gather(conf_loss, idxes)
-                # Compute sum of neglosses
-                nloss = tf.reduce_sum(nloss, name='negative_conf_loss') / tf.cast(nnegatives, tf.float32)
+                # Hard Negative Mining
+                filtered_nloss, _ = tf.nn.top_k(negatives, k=tf.to_int32(nnegatives))
+
+                # Compute the negative loss
+                nloss = tf.reduce_sum(filtered_nloss) / tf.cast(nnegatives, tf.float32)
 
                 total_loss = ploss + nloss
                 total_loss += (alpha * plocloss)
@@ -334,7 +342,7 @@ class DSSD(DSSDNet):
             layer_anchors.append(generate_anchors(feat_shape, step, scale, ratio))
         return layer_anchors
 
-    def get_bboxes(self, predictions_layer, locs_layer, anchors_layer, prior_scaling=[0.1, 0.1, 0.2, 0.2], thresh=.1):
+    def get_bboxes(self, predictions_layer, locs_layer, anchors_layer, prior_scaling=[0.1, 0.1, 0.2, 0.2], thresh=.5):
 
         def _get_bbox(preds, locs, anchors):
             y, x, h, w = anchors

@@ -24,7 +24,7 @@ def eval(image, model_fn):
 
     img_ph = tf.placeholder(tf.uint8, shape=(None, None, 3))
 
-    img = preprocess_for_export(img_ph, FLAGS.img_size, 1)
+    img = preprocess_for_export(tf.expand_dims(img_ph, 0), FLAGS.img_size, 1)
 
     # Eval model
     eval_model = ssd.eval_model
@@ -48,9 +48,10 @@ def eval(image, model_fn):
     names = labels_to_name()
 
     def get_infos(image, shape):
-        score, bbox = sess.run([scores, bboxes], feed_dict={img_ph: image, shape_ph: shape})
+        score, bbox = sess.run([scores, bboxes], feed_dict={img_ph: image})
 
-        draw_bbox(image, score[0], bbox[0])
+        for _score, _bbox in zip(score, bbox):
+            draw_bbox(image, _score, _bbox)
         infos = []
         for k, v in score[0].items():
             for sc, bb in zip(score[0][k], bbox[0][k]):
@@ -77,7 +78,7 @@ def iou_with_anchors(bboxes, labels):
 
 
 def draw_bbox(image, preds, bboxes):
-    fig, ax = plt.subplots(1)
+    fig, ax = plt.subplots(1, figsize=(13, 7))
     scale_h, scale_w, _ = image.shape
     ax.imshow(image)
 

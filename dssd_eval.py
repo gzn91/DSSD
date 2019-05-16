@@ -171,7 +171,7 @@ def get_bboxes(predictions_layer, locs_layer, anchors_layer, prior_scaling=[0.1,
             _bb = tf.boolean_mask(bb, select_mask)
             _sc = tf.boolean_mask(class_scores, select_mask)
 
-            idx = tf.image.non_max_suppression(_bb, _sc, iou_threshold=.45, max_output_size=200)
+            idx = tf.image.non_max_suppression(_bb, _sc, iou_threshold=.45, max_output_size=20)
 
             sel_sc[c] = tf.gather(_sc, idx)
             sel_bb[c] = tf.gather(_bb, idx)

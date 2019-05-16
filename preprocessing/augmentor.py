@@ -555,8 +555,8 @@ def preprocess_for_export(image, resolution, mb_size):
         image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
     # image = tf.expand_dims(image, 0)
-    # image = tf.image.resize_bilinear(image, [resolution, resolution],
-    #                                  align_corners=False)
+    image = tf.image.resize_bilinear(image, [resolution, resolution],
+                                     align_corners=False)
     image = tf.reshape(image, (mb_size, resolution, resolution, 3))
     image = tf.subtract(image, 0.5)
     image = tf.multiply(image, 2.0)

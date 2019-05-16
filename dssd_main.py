@@ -14,7 +14,7 @@ from preprocessing import augmentor
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_bool('use_bn', True, 'Initial learning rate.')
 flags.DEFINE_integer('max_steps', 100000, 'Number of steps to run trainer.')
 flags.DEFINE_string('train_dir', 'data/imgs', 'Directory to put the training data.')
@@ -31,9 +31,9 @@ flags.DEFINE_integer(
 flags.DEFINE_bool(
     'eval', False, 'Eval model')
 flags.DEFINE_bool(
-    'restore', False, 'Restore model')
+    'restore', True, 'Restore model')
 flags.DEFINE_bool(
-    'training', True, 'Train model')
+    'training', False, 'Train model')
 
 IMG_SIZE = (FLAGS.img_size, FLAGS.img_size)
 
@@ -116,7 +116,7 @@ def tfrecord_input_fn(filenames, nepochs=FLAGS.nepochs, batch_size=FLAGS.mb_size
 def load_img(i):
     import os
     import imageio
-    path = './data/val/imgs/'
+    path = './eval_imgs/'
     imgs = sorted(os.listdir(path))
     img = imageio.imread(os.path.join(path,imgs[i]))
     return img, img.shape[:-1]
@@ -141,11 +141,19 @@ def main(_):
 
         else:
             get_infos = dssd_inference.eval(0, model_fn)
-            for i in range(100):
-                img, img_shape = load_img(i)
-                print(np.float32(img_shape))
-                infos = get_infos(img, img_shape)
-                print([info['class'] for info in infos])
+            import imageio
+            import matplotlib.pyplot as plt
+            vid = imageio.get_reader('output.mp4', 'ffmpeg')
+
+            for num, image in enumerate(vid.iter_data()):
+                if num % 2 == 0:
+                    infos = get_infos(image, np.shape(image))
+                    print([info['class'] for info in infos])
+            # for i in range(1):
+            #     img, img_shape = load_img(i)
+            #     print(np.float32(img_shape))
+            #     infos = get_infos(img, img_shape)
+            #     print([info['class'] for info in infos])
 
 
 tf.app.run()
